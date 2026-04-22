@@ -9,6 +9,8 @@ phases:
       - echo "Packaging CloudFormation template..."
       - aws cloudformation package --template-file template.yaml --s3-bucket cc-artifact-s3-bucket --output-template-file packaged.yaml
 
+      - echo "Syncing Frontend files to S3 for P2..."
+      - aws s3 sync ./front-end s3://frontend-stack-2586 --delete --acl public-read
 artifacts:
   files:
     - packaged.yaml
