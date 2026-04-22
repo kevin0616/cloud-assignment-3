@@ -5,8 +5,13 @@ Description: HW3 Infrastructure - Lambda, API Gateway, and S3 Buckets
 Resources:
   PhotoStorageBucket:
     Type: AWS::S3::Bucket
+    DependsOn: IndexLambdaPermission
     Properties:
       BucketName: storage-stack-2586
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt IndexLambdaFunction.Arn
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -43,13 +48,14 @@ Resources:
         - S3ReadPolicy:
             BucketName: storage-stack-2586
         - RekognitionDetectOnlyPolicy: {}
-      Events:
-        S3Trigger:
-          Type: S3
-          Properties:
-            Bucket: storage-stack-2586
-            Events: s3:ObjectCreated:*
-        
+
+  IndexLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref IndexLambdaFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::storage-stack-2586'
 
   SearchLambdaFunction:
     Type: AWS::Serverless::Function
