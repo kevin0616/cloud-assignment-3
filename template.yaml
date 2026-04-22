@@ -49,11 +49,7 @@ Resources:
           Properties:
             Bucket: !Ref PhotoStorageBucket
             Events: s3:ObjectCreated:*
-        ApiUpload:
-          Type: Api
-          Properties:
-            Path: /upload/{filename}
-            Method: put
+        
 
   SearchLambdaFunction:
     Type: AWS::Serverless::Function
