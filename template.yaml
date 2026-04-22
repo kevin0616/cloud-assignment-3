@@ -44,7 +44,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index-photos.lambda_handler
-      Runtime: python 3.9
+      Runtime: python3.9
       CodeUri: ./lambda-functions/index/
       Environment:
         Variables:
@@ -68,7 +68,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: search-photos.lambda_handler
-      Runtime: python 3.9
+      Runtime: python3.9
       CodeUri: ./lambda-functions/search/
       Policies:
         - AmazonOpenSearchServiceFullAccess
