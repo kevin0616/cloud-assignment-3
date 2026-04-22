@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Photo Album</title>
+
+    <script src="./lib/axios/dist/axios.standalone.js"></script>
+    <script src="./lib/CryptoJS/rollups/hmac-sha256.js"></script>
+    <script src="./lib/CryptoJS/rollups/sha256.js"></script>
+    <script src="./lib/CryptoJS/components/hmac.js"></script>
+    <script src="./lib/CryptoJS/components/enc-base64.js"></script>
+    <script src="./lib/url-template/url-template.js"></script>
+    <script src="./lib/apiGatewayCore/sigV4Client.js"></script>
+    <script src="./lib/apiGatewayCore/apiGatewayClient.js"></script>
+    <script src="./lib/apiGatewayCore/simpleHttpClient.js"></script>
+    <script src="./lib/apiGatewayCore/utils.js"></script>
+    <script src="./apigClient.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background-color: #f9f9f9; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        .tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; cursor: pointer; border: none; background: none; font-size: 16px; font-weight: bold; color: #888; }
+        .tab-btn.active { color: #007bff; border-bottom: 2px solid #007bff; }
+        
+        .component { display: none; }
+        .component.active { display: block; }
+
+        input, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+
+        #previewContainer { margin: 15px 0; text-align: center; border: 2px dashed #ddd; padding: 10px; border-radius: 8px; }
+        #previewImage { max-width: 100%; max-height: 250px; display: none; margin: auto; border-radius: 5px; }
+        #results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+
+        .photo-card {height: 220px; border: 1px solid #eee; border-radius: 8px; padding: 10px; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+
+        .photo-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; }
+
+        .labels { font-size: 12px; color: gray; margin-top: 8px; }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>Photo Album</h1>
+
+    <div class="tabs">
+        <button id="btn-upload" class="tab-btn active" onclick="showTab('upload')">Upload</button>
+        <button id="btn-search" class="tab-btn" onclick="showTab('search')">Search</button>
+    </div>
+
+    <div id="uploadComponent" class="component active">
+        <h2>Upload Photo</h2>
+        <input type="file" id="fileInput" accept="image/*" onchange="previewFile()" />
+        
+        <div id="previewContainer">
+            <span id="previewText">Image preview will appear here</span>
+            <img id="previewImage" src="" alt="Preview" />
+        </div>
+
+        <input type="text" id="labelsInput" placeholder="custom labels (e.g. Sam, dog)" />
+        <button onclick="uploadPhoto()">Upload</button>
+    </div>
+
+    <div id="searchComponent" class="component">
+        <h2>Search Photos</h2>
+        <input type="text" id="searchInput" placeholder="e.g. dogs and cats" />
+        <button onclick="searchPhotos()">Search</button>
+        
+        <div id="results"></div>
+    </div>
+</div>
+
+<script>
+
+const apigClient = apigClientFactory.newClient({});
+
+function showTab(tab) {
+    document.getElementById('btn-upload').classList.toggle('active', tab === 'upload');
+    document.getElementById('btn-search').classList.toggle('active', tab === 'search');
+
+    document.getElementById('uploadComponent').classList.toggle('active', tab === 'upload');
+    document.getElementById('searchComponent').classList.toggle('active', tab === 'search');
+}
+
+function previewFile() {
+    const file = document.getElementById('fileInput').files[0];
+    const preview = document.getElementById('previewImage');
+    const text = document.getElementById('previewText');
+
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            text.style.display = 'none';
+        }
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+        text.style.display = 'block';
+    }
+}
+/* =================  UPLOAD  ================= */
+async function uploadPhoto() {
+    const fileInput = document.getElementById("fileInput");
+    const labelsInput = document.getElementById("labelsInput");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("please select a file");
+        return;
+    }
+
+    const filename = encodeURIComponent(file.name);
+    const labels = labelsInput.value;
+
+    const apiUrl = `https://rlop9f4zs9.execute-api.us-east-1.amazonaws.com/dev/upload/${filename}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type,
+                'x-amz-meta-customLabels': labels
+            },
+            body: file
+        });
+
+        if (response.ok) {
+            alert("Upload Success!");
+            
+            fileInput.value = "";
+            labelsInput.value = "";
+            if (typeof previewFile === "function") previewFile();
+        } else {
+            const errorText = await response.text();
+            console.error("Upload Failed: ", errorText);
+            alert(`Upload Failed: ${response.status}`);
+        }
+
+    } catch (err) {
+        console.error("Internet Error: ", err);
+        alert("An error occurs, please check the internet");
+    }
+}
+
+/* =================  SEARCH  ================= */
+async function searchPhotos() {
+    const query = document.getElementById("searchInput").value;
+
+    try {
+        const result = await apigClient.searchGet(
+            { q: query },
+            {},
+            {}
+        );
+        renderResults(result.data.results || []);
+    } catch (err) {
+        console.error(err);
+        alert("Search failed");
+    }
+}
+
+function renderResults(results) {
+    const container = document.getElementById("results");
+    container.innerHTML = "";
+
+    if (results.length === 0) {
+        container.innerHTML = "<p>No results</p>";
+        return;
+    }
+
+    results.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "photo-card";
+
+        const img = document.createElement("img");
+        img.src = item.url;
+
+        const label = document.createElement("div");
+        label.className = "labels";
+        label.innerText = (item.labels || []).join(", ");
+
+        div.appendChild(img);
+        div.appendChild(label);
+        container.appendChild(div);
+    });
+}
+</script>
+
+</body>
+</html>

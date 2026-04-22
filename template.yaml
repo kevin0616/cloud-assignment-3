@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: HW3 Infrastructure - Lambda, API Gateway, and S3 Buckets
+
+Resources:
+  PhotoStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: storage-stack-2586
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: frontend-stack-2586
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${FrontendBucket}/*'
+
+  IndexLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index-photos.lambda_handler
+      Runtime: python 3.9
+      CodeUri: ./lambda-functions/index/
+      Environment:
+        Variables:
+          OS_HOST: 'https://search-photos-yeglk7r5keywwpjplxo7lju5z4.aos.us-east-1.on.aws'
+          OS_USER: 'kevin0616'
+          OS_PASSWORD: 'Sieun$200181'
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref PhotoStorageBucket
+        - RekognitionDetectOnlyPolicy: {}
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref PhotoStorageBucket
+            Events: s3:ObjectCreated:*
+        ApiUpload:
+          Type: Api
+          Properties:
+            Path: /upload/{filename}
+            Method: put
+
+  SearchLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: search-photos.lambda_handler
+      Runtime: python 3.9
+      CodeUri: ./lambda-functions/search/
+      Events:
+        ApiSearch:
+          Type: Api
+          Properties:
+            Path: /search
+            Method: get
+
+Outputs:
+  FrontendWebsiteURL:
+    Description: "Frontend S3 Public URL"
+    Value: !GetAtt FrontendBucket.WebsiteURL
