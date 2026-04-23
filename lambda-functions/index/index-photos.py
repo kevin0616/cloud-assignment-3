@@ -86,5 +86,5 @@ def lambda_handler(event, context):
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': '*',
         },
-        'body': json.dumps('Indexed success2.0!')
+        'body': json.dumps('Indexed success3.0!')
     }
